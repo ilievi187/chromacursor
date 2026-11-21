@@ -30,7 +30,7 @@ TMP_HOOK="$(mktemp)"
 cat > "$TMP_HOOK" << EOF
 #!/usr/bin/env bash
 set -euo pipefail
-QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME="" python3 "$ROOT/generator.py" >/dev/null 2>&1 &
+(sleep 0.3 && QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME="" python3 "$ROOT/generator.py" >/dev/null 2>&1) &
 EOF
 chmod +x "$TMP_HOOK"
 

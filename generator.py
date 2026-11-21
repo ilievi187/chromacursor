@@ -329,6 +329,17 @@ def build_cursor_theme(colors: CursorColors | None = None, style: str | None = N
         "Inherits=Bibata-Modern-Ice,Adwaita\n"
     )
     (theme_dir / "index.theme").write_text(index_text, encoding="utf-8")
+
+    # Symlink into ~/.icons/<THEME_NAME> so libXcursor / Hyprland / XWayland always find it
+    legacy_icons = Path.home() / ".icons"
+    legacy_icons.mkdir(parents=True, exist_ok=True)
+    legacy_link = legacy_icons / THEME_NAME
+    if legacy_link.is_symlink() or legacy_link.exists():
+        if legacy_link.is_symlink() or legacy_link.is_file():
+            legacy_link.unlink()
+    if not legacy_link.exists():
+        legacy_link.symlink_to(theme_dir)
+
     return theme_dir
 
 
