@@ -2,7 +2,9 @@
 
 **Dynamic Linux Xcursor theme that automatically recolors itself every time you switch your Omarchy / Hyprland theme!**
 
-Zero `xcursorgen` required — **ChromaCursor** renders crisp multi-size (`24px`, `32px`, `48px`) anti-aliased vector cursors (including a 12-frame animated spinner) directly into native Xcursor binaries (`Xcur`) in pure Python + Qt 6 (`PySide6`), and hot-reloads Hyprland + GTK live with **no logout required**.
+![ChromaCursor Preview](docs/preview.png)
+
+Zero `xcursorgen` required — **ChromaCursor** renders crisp multi-size (`24px`, `32px`, `48px`) anti-aliased vector cursors (including 12-frame animated **Pulse Aura**, **Mini Fire 🔥**, and **Wait** spinner cursors) directly into native Xcursor binaries (`Xcur`) in pure Python + Qt 6 (`PySide6`), and hot-reloads Hyprland + GTK live with **no logout required**.
 
 ## Features
 
