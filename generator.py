@@ -49,6 +49,13 @@ SHAPES = {
     "classic": "Classic",
 }
 
+EFFECTS = {
+    "none": "Clean",
+    "glow": "Bright Glow",
+    "pulse": "Pulse Aura",
+    "ember": "Mini Fire 🔥",
+}
+
 SIZES = (24, 32, 48)
 
 # Primary cursor names -> list of Wayland/X11/GTK/Qt aliases
@@ -94,7 +101,7 @@ def read_omarchy_colors() -> CursorColors:
 
 
 def load_config() -> dict:
-    default = {"style": "neon", "shape": "bibata", "size": 24, "enabled": True}
+    default = {"style": "neon", "shape": "bibata", "effect": "glow", "size": 24, "enabled": True}
     if CONFIG_PATH.is_file():
         try:
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -135,6 +142,7 @@ def _render_cursor_image(
     colors: CursorColors,
     style: str,
     shape: str = "bibata",
+    effect: str = "glow",
     phase: float = 0.0,
 ) -> tuple[QImage, int, int]:
     """Render a crisp anti-aliased cursor QImage (ARGB32_Premultiplied) + (xhot, yhot)."""
@@ -149,12 +157,69 @@ def _render_cursor_image(
     danger = QColor(colors.danger)
     stroke_w = max(1.4, s * 0.068)
 
+    # Effect center (near cursor body)
+    eff_cx, eff_cy = (s * 0.5, s * 0.5) if (shape == "dot" or name not in ("default", "pointer")) else (s * 0.36, s * 0.44)
+
+    # Background aura / glow / animated pulse / mini fire embers
+    if effect == "glow":
+        grad = QRadialGradient(QPointF(eff_cx, eff_cy), s * 0.48)
+        c0 = QColor(accent); c0.setAlpha(155)
+        c1 = QColor(accent); c1.setAlpha(55)
+        c2 = QColor(accent); c2.setAlpha(0)
+        grad.setColorAt(0.0, c0)
+        grad.setColorAt(0.55, c1)
+        grad.setColorAt(1.0, c2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(grad)
+        p.drawEllipse(QPointF(eff_cx, eff_cy), s * 0.48, s * 0.48)
+    elif effect == "pulse":
+        wave = 0.5 + 0.5 * math.sin(phase * 2.0 * math.pi)
+        radius = s * (0.34 + 0.15 * wave)
+        grad = QRadialGradient(QPointF(eff_cx, eff_cy), radius)
+        c0 = QColor(accent); c0.setAlpha(int(120 + 85 * wave))
+        c1 = QColor(accent); c1.setAlpha(int(35 + 45 * wave))
+        c2 = QColor(accent); c2.setAlpha(0)
+        grad.setColorAt(0.0, c0)
+        grad.setColorAt(0.6, c1)
+        grad.setColorAt(1.0, c2)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(grad)
+        p.drawEllipse(QPointF(eff_cx, eff_cy), radius, radius)
+    elif effect == "ember":
+        # Warm glowing ember aura + tiny flickering flame wisps & rising micro-sparks
+        flicker = 0.5 + 0.5 * math.sin(phase * 4.0 * math.pi)
+        grad = QRadialGradient(QPointF(eff_cx, eff_cy), s * 0.46)
+        core_fire = QColor("#ff9e3d"); core_fire.setAlpha(int(125 + 55 * flicker))
+        outer_fire = QColor("#ff4d2e"); outer_fire.setAlpha(int(45 + 35 * flicker))
+        zero_fire = QColor("#ff4d2e"); zero_fire.setAlpha(0)
+        grad.setColorAt(0.0, core_fire)
+        grad.setColorAt(0.55, outer_fire)
+        grad.setColorAt(1.0, zero_fire)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(grad)
+        p.drawEllipse(QPointF(eff_cx, eff_cy), s * 0.46, s * 0.46)
+
+        # 5 subtle rising ember sparks around the cursor
+        for i in range(5):
+            t = (phase + i * 0.21) % 1.0
+            angle = (i * 1.25) + math.sin(phase * 2.0 * math.pi + i) * 0.45
+            dist = s * (0.20 + t * 0.24)
+            sx = eff_cx + math.cos(angle) * dist * 0.85
+            sy = eff_cy + math.sin(angle) * dist * 0.55 - t * s * 0.22
+            spark_r = max(1.0, s * (0.055 * (1.0 - t * 0.75)))
+            spark_col = QColor("#ffe066") if t < 0.35 else (QColor("#ff8c2e") if t < 0.7 else QColor(accent))
+            spark_col.setAlpha(int(230 * (1.0 - t)))
+            p.setBrush(spark_col)
+            p.drawEllipse(QPointF(sx, sy), spark_r, spark_r)
+
     def draw_glow_path(path: QPainterPath, pen_color: QColor, fill_color: QColor | None = None) -> None:
-        # Soft outer halo for crisp readability on any wallpaper/window
+        # Outer luminous halo (stronger when glow/pulse/ember is active)
+        halo_alpha = 135 if effect in ("glow", "pulse", "ember") else 75
+        halo_mult = 2.9 if effect in ("glow", "pulse", "ember") else 2.1
         halo = QColor(pen_color)
-        halo.setAlpha(75)
+        halo.setAlpha(halo_alpha)
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.setPen(QPen(halo, stroke_w * 2.2, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        p.setPen(QPen(halo, stroke_w * halo_mult, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
         p.drawPath(path)
         p.setBrush(fill_color if fill_color is not None else Qt.BrushStyle.NoBrush)
         p.setPen(QPen(pen_color, stroke_w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
@@ -333,39 +398,59 @@ def _ensure_qt() -> QGuiApplication:
     return app
 
 
-def render_preview_images(colors: CursorColors, style: str, shape: str = "bibata", size: int = 48) -> dict[str, QImage]:
+def render_preview_images(
+    colors: CursorColors,
+    style: str,
+    shape: str = "bibata",
+    effect: str = "glow",
+    size: int = 48,
+    phase: float = 0.15,
+) -> dict[str, QImage]:
     _ensure_qt()
     out: dict[str, QImage] = {}
     for name in CURSOR_ALIASES:
-        img, _, _ = _render_cursor_image(name, size, colors, style, shape=shape, phase=0.15)
+        img, _, _ = _render_cursor_image(name, size, colors, style, shape=shape, effect=effect, phase=phase)
         out[name] = img
     return out
 
 
-def build_cursor_theme(colors: CursorColors | None = None, style: str | None = None, shape: str | None = None) -> Path:
+def build_cursor_theme(
+    colors: CursorColors | None = None,
+    style: str | None = None,
+    shape: str | None = None,
+    effect: str | None = None,
+) -> Path:
     """Generate the complete ChromaCursor Xcursor theme under ~/.local/share/icons/ChromaCursor."""
     _ensure_qt()
     cfg = load_config()
     eff_colors = colors or read_omarchy_colors()
     eff_style = style or cfg.get("style", "neon")
     eff_shape = shape or cfg.get("shape", "bibata")
+    eff_effect = effect or cfg.get("effect", "glow")
 
     theme_dir = ICONS_DIR / THEME_NAME
     cursors_dir = theme_dir / "cursors"
     cursors_dir.mkdir(parents=True, exist_ok=True)
 
+    animated_effect = eff_effect in ("pulse", "ember")
+
     for primary, aliases in CURSOR_ALIASES.items():
         frames: list[CursorFrame] = []
-        if primary == "wait":
+        if primary == "wait" or (animated_effect and primary in ("default", "pointer")):
             n_frames = 12
+            delay_ms = 55 if primary == "wait" else 75
             for sz in SIZES:
                 for i in range(n_frames):
-                    img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style, shape=eff_shape, phase=i / n_frames)
+                    img, xhot, yhot = _render_cursor_image(
+                        primary, sz, eff_colors, eff_style, shape=eff_shape, effect=eff_effect, phase=i / n_frames
+                    )
                     raw = bytes(img.constBits())
-                    frames.append(CursorFrame(sz, sz, sz, xhot, yhot, 55, raw))
+                    frames.append(CursorFrame(sz, sz, sz, xhot, yhot, delay_ms, raw))
         else:
             for sz in SIZES:
-                img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style, shape=eff_shape)
+                img, xhot, yhot = _render_cursor_image(
+                    primary, sz, eff_colors, eff_style, shape=eff_shape, effect=eff_effect
+                )
                 raw = bytes(img.constBits())
                 frames.append(CursorFrame(sz, sz, sz, xhot, yhot, 0, raw))
 
@@ -381,7 +466,7 @@ def build_cursor_theme(colors: CursorColors | None = None, style: str | None = N
     index_text = (
         "[Icon Theme]\n"
         f"Name={THEME_NAME}\n"
-        f"Comment=Dynamic Omarchy theme-synced cursor ({eff_shape}/{eff_style}, accent {eff_colors.accent})\n"
+        f"Comment=Dynamic Omarchy theme-synced cursor ({eff_shape}/{eff_style}/{eff_effect}, accent {eff_colors.accent})\n"
         "Inherits=Bibata-Modern-Ice,Adwaita\n"
     )
     (theme_dir / "index.theme").write_text(index_text, encoding="utf-8")
@@ -431,6 +516,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="ChromaCursor — Dynamic Omarchy theme-synced cursor generator")
     parser.add_argument("--style", choices=list(STYLES), default=None, help="Cursor color style")
     parser.add_argument("--shape", choices=list(SHAPES), default=None, help="Cursor shape (bibata, dot, triangle, classic)")
+    parser.add_argument("--effect", choices=list(EFFECTS), default=None, help="Cursor effect (none, glow, pulse, ember)")
     parser.add_argument("--size", type=int, choices=list(SIZES), default=None, help="Cursor size in px")
     parser.add_argument("--accent", default=None, help="Override accent hex color (e.g. #38bdf8)")
     parser.add_argument("--no-apply", action="store_true", help="Generate files without calling hyprctl/gsettings")
@@ -447,9 +533,11 @@ def main() -> int:
         cfg["style"] = args.style
     if args.shape:
         cfg["shape"] = args.shape
+    if args.effect:
+        cfg["effect"] = args.effect
     if args.size:
         cfg["size"] = args.size
-    if args.style or args.shape or args.size:
+    if args.style or args.shape or args.effect or args.size:
         save_config(cfg)
 
     colors = read_omarchy_colors()
@@ -457,12 +545,18 @@ def main() -> int:
         colors.accent = args.accent
         colors.source = "CLI override"
 
-    theme_dir = build_cursor_theme(colors=colors, style=cfg.get("style", "neon"), shape=cfg.get("shape", "bibata"))
+    theme_dir = build_cursor_theme(
+        colors=colors,
+        style=cfg.get("style", "neon"),
+        shape=cfg.get("shape", "bibata"),
+        effect=cfg.get("effect", "glow"),
+    )
     if not args.no_apply:
         apply_cursor_live(THEME_NAME, cfg.get("size", 24))
 
     print(
-        f"ChromaCursor generated ({cfg.get('shape', 'bibata')}/{cfg.get('style', 'neon')}, accent={colors.accent}, size={cfg.get('size', 24)}px) -> {theme_dir}"
+        f"ChromaCursor generated ({cfg.get('shape', 'bibata')}/{cfg.get('style', 'neon')}/{cfg.get('effect', 'glow')}, "
+        f"accent={colors.accent}, size={cfg.get('size', 24)}px) -> {theme_dir}"
     )
     return 0
 

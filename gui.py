@@ -10,7 +10,7 @@ from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
 
-from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QUrl, Qt
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, QTimer, QUrl, Qt
 from PySide6.QtGui import QColor, QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -75,20 +75,28 @@ class ChromaCursorWindow(QMainWindow):
         self.cfg = gen.load_config()
         self.style_key: str = self.cfg.get("style", "neon")
         self.shape_key: str = self.cfg.get("shape", "bibata")
+        self.effect_key: str = self.cfg.get("effect", "glow")
         self.cursor_size: int = int(self.cfg.get("size", 24))
+        self._preview_phase: float = 0.0
         self._glow_buttons: list[GlowButton] = []
         self._style_btns: dict[str, GlowButton] = {}
         self._shape_btns: dict[str, GlowButton] = {}
+        self._effect_btns: dict[str, GlowButton] = {}
         self._size_btns: dict[int, GlowButton] = {}
         self._preview_labels: dict[str, QLabel] = {}
 
         self.setWindowTitle("ChromaCursor — Dynamic Omarchy Theme Cursors")
-        self.resize(820, 580)
-        self.setMinimumSize(680, 480)
+        self.resize(840, 620)
+        self.setMinimumSize(680, 520)
 
         self._build_ui()
         self.apply_theme(self.palette_data)
         self.watcher.theme_changed.connect(self._on_omarchy_theme_changed)
+
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(90)
+        self._anim_timer.timeout.connect(self._tick_preview)
+        self._anim_timer.start()
 
     def _btn(self, text: str, obj_name: str = "", blur: float = 16.0) -> GlowButton:
         b = GlowButton(text, glow_hex=self.palette_data.accent, max_blur=blur)
@@ -143,6 +151,20 @@ class ChromaCursorWindow(QMainWindow):
             shapes_row.addWidget(b)
         shapes_row.addStretch()
         root.addLayout(shapes_row)
+
+        # Effect Row: Clean / Bright Glow / Pulse Aura / Mini Fire
+        effects_row = QHBoxLayout()
+        effects_row.setSpacing(8)
+        effects_row.addWidget(QLabel("Effect:"))
+        for key, label in gen.EFFECTS.items():
+            b = self._btn(label, obj_name="ChipButton", blur=14.0)
+            b.setCheckable(True)
+            b.setChecked(key == self.effect_key)
+            b.clicked.connect(lambda checked=False, k=key: self._select_effect(k))
+            self._effect_btns[key] = b
+            effects_row.addWidget(b)
+        effects_row.addStretch()
+        root.addLayout(effects_row)
 
         # Controls Row: Style + Size
         controls = QHBoxLayout()
@@ -258,6 +280,20 @@ class ChromaCursorWindow(QMainWindow):
                 self.status_lbl.setText("✓ Auto-sync hook installed!")
         self._refresh_hook_button()
 
+    def _select_effect(self, key: str) -> None:
+        self.effect_key = key
+        for k, b in self._effect_btns.items():
+            b.setChecked(k == key)
+        self.cfg["effect"] = key
+        gen.save_config(self.cfg)
+        self._refresh_previews()
+        self._apply_now()
+
+    def _tick_preview(self) -> None:
+        if self.effect_key in ("pulse", "ember"):
+            self._preview_phase = (self._preview_phase + 1.0 / 12.0) % 1.0
+            self._refresh_previews()
+
     def _select_shape(self, key: str) -> None:
         self.shape_key = key
         for k, b in self._shape_btns.items():
@@ -286,18 +322,22 @@ class ChromaCursorWindow(QMainWindow):
 
     def _refresh_previews(self) -> None:
         colors = gen.read_omarchy_colors()
-        imgs = gen.render_preview_images(colors, self.style_key, shape=self.shape_key, size=48)
+        imgs = gen.render_preview_images(
+            colors, self.style_key, shape=self.shape_key, effect=self.effect_key, size=48, phase=self._preview_phase
+        )
         for name, img in imgs.items():
             if name in self._preview_labels:
                 self._preview_labels[name].setPixmap(QPixmap.fromImage(img))
-        self.accent_pill.setText(f"{colors.accent} · {gen.SHAPES[self.shape_key]} · {gen.STYLES[self.style_key]}")
+        self.accent_pill.setText(
+            f"{colors.accent} · {gen.SHAPES[self.shape_key]} · {gen.EFFECTS[self.effect_key]}"
+        )
 
     def _apply_now(self) -> None:
         colors = gen.read_omarchy_colors()
-        gen.build_cursor_theme(colors=colors, style=self.style_key, shape=self.shape_key)
+        gen.build_cursor_theme(colors=colors, style=self.style_key, shape=self.shape_key, effect=self.effect_key)
         gen.apply_cursor_live(gen.THEME_NAME, self.cursor_size)
         self.status_lbl.setText(
-            f"✓ Applied {gen.SHAPES[self.shape_key]} / {gen.STYLES[self.style_key]} ({colors.accent}, {self.cursor_size}px) live!"
+            f"✓ Applied {gen.SHAPES[self.shape_key]} / {gen.STYLES[self.style_key]} / {gen.EFFECTS[self.effect_key]} ({colors.accent}, {self.cursor_size}px)!"
         )
 
     def _restore_default(self) -> None:
