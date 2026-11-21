@@ -42,6 +42,13 @@ STYLES = {
     "glass": "Minimal Glass",
 }
 
+SHAPES = {
+    "bibata": "Bibata",
+    "dot": "Dot",
+    "triangle": "Triangle",
+    "classic": "Classic",
+}
+
 SIZES = (24, 32, 48)
 
 # Primary cursor names -> list of Wayland/X11/GTK/Qt aliases
@@ -87,7 +94,7 @@ def read_omarchy_colors() -> CursorColors:
 
 
 def load_config() -> dict:
-    default = {"style": "neon", "size": 24, "enabled": True}
+    default = {"style": "neon", "shape": "bibata", "size": 24, "enabled": True}
     if CONFIG_PATH.is_file():
         try:
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -122,7 +129,14 @@ def _style_colors(colors: CursorColors, style: str) -> tuple[QColor, QColor, QCo
     return core, accent, accent
 
 
-def _render_cursor_image(name: str, size: int, colors: CursorColors, style: str, phase: float = 0.0) -> tuple[QImage, int, int]:
+def _render_cursor_image(
+    name: str,
+    size: int,
+    colors: CursorColors,
+    style: str,
+    shape: str = "bibata",
+    phase: float = 0.0,
+) -> tuple[QImage, int, int]:
     """Render a crisp anti-aliased cursor QImage (ARGB32_Premultiplied) + (xhot, yhot)."""
     img = QImage(size, size, QImage.Format.Format_ARGB32_Premultiplied)
     img.fill(Qt.GlobalColor.transparent)
@@ -149,42 +163,84 @@ def _render_cursor_image(name: str, size: int, colors: CursorColors, style: str,
     xhot, yhot = int(s * 0.5), int(s * 0.5)
 
     if name == "default":
-        xhot, yhot = int(round(s * 0.14)), int(round(s * 0.10))
-        path = QPainterPath()
-        path.moveTo(s * 0.14, s * 0.10)
-        path.lineTo(s * 0.14, s * 0.84)
-        path.lineTo(s * 0.34, s * 0.65)
-        path.lineTo(s * 0.50, s * 0.90)
-        path.lineTo(s * 0.61, s * 0.84)
-        path.lineTo(s * 0.45, s * 0.60)
-        path.lineTo(s * 0.72, s * 0.58)
-        path.closeSubpath()
-        draw_glow_path(path, outline, fill)
-        # Subtle inner accent spine
-        spine = QPainterPath()
-        spine.moveTo(s * 0.22, s * 0.26)
-        spine.lineTo(s * 0.22, s * 0.58)
-        p.setPen(QPen(accent, max(1.0, s * 0.04), Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        p.drawPath(spine)
+        if shape == "dot":
+            xhot, yhot = int(round(s * 0.5)), int(round(s * 0.5))
+            outer = QPainterPath()
+            outer.addEllipse(QPointF(s * 0.5, s * 0.5), s * 0.28, s * 0.28)
+            draw_glow_path(outer, outline, fill)
+            p.setBrush(accent)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.11, s * 0.11)
+        elif shape == "triangle":
+            xhot, yhot = int(round(s * 0.14)), int(round(s * 0.12))
+            path = QPainterPath()
+            path.moveTo(s * 0.14, s * 0.12)
+            path.lineTo(s * 0.30, s * 0.84)
+            path.quadTo(s * 0.48, s * 0.58, s * 0.82, s * 0.52)
+            path.closeSubpath()
+            draw_glow_path(path, outline, fill)
+        elif shape == "bibata":
+            # Smooth rounded Bibata Modern silhouette with curved inner notch
+            xhot, yhot = int(round(s * 0.16)), int(round(s * 0.12))
+            path = QPainterPath()
+            path.moveTo(s * 0.18, s * 0.12)
+            path.quadTo(s * 0.14, s * 0.12, s * 0.14, s * 0.18)
+            path.lineTo(s * 0.14, s * 0.78)
+            path.quadTo(s * 0.14, s * 0.86, s * 0.22, s * 0.82)
+            path.quadTo(s * 0.36, s * 0.72, s * 0.44, s * 0.68)
+            path.lineTo(s * 0.54, s * 0.88)
+            path.quadTo(s * 0.58, s * 0.93, s * 0.64, s * 0.89)
+            path.quadTo(s * 0.69, s * 0.86, s * 0.65, s * 0.80)
+            path.lineTo(s * 0.54, s * 0.62)
+            path.quadTo(s * 0.66, s * 0.60, s * 0.76, s * 0.56)
+            path.quadTo(s * 0.83, s * 0.53, s * 0.77, s * 0.47)
+            path.lineTo(s * 0.22, s * 0.13)
+            path.closeSubpath()
+            draw_glow_path(path, outline, fill)
+        else:
+            xhot, yhot = int(round(s * 0.14)), int(round(s * 0.10))
+            path = QPainterPath()
+            path.moveTo(s * 0.14, s * 0.10)
+            path.lineTo(s * 0.14, s * 0.84)
+            path.lineTo(s * 0.34, s * 0.65)
+            path.lineTo(s * 0.50, s * 0.90)
+            path.lineTo(s * 0.61, s * 0.84)
+            path.lineTo(s * 0.45, s * 0.60)
+            path.lineTo(s * 0.72, s * 0.58)
+            path.closeSubpath()
+            draw_glow_path(path, outline, fill)
+            spine = QPainterPath()
+            spine.moveTo(s * 0.22, s * 0.26)
+            spine.lineTo(s * 0.22, s * 0.58)
+            p.setPen(QPen(accent, max(1.0, s * 0.04), Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+            p.drawPath(spine)
 
     elif name == "pointer":
-        xhot, yhot = int(round(s * 0.36)), int(round(s * 0.10))
-        path = QPainterPath()
-        # Sleek geometric pointing finger + palm
-        path.moveTo(s * 0.36, s * 0.10)
-        path.lineTo(s * 0.47, s * 0.10)
-        path.lineTo(s * 0.47, s * 0.42)
-        path.lineTo(s * 0.57, s * 0.40)
-        path.lineTo(s * 0.68, s * 0.44)
-        path.lineTo(s * 0.77, s * 0.50)
-        path.lineTo(s * 0.75, s * 0.78)
-        path.lineTo(s * 0.64, s * 0.90)
-        path.lineTo(s * 0.36, s * 0.90)
-        path.lineTo(s * 0.22, s * 0.66)
-        path.lineTo(s * 0.27, s * 0.54)
-        path.lineTo(s * 0.36, s * 0.60)
-        path.closeSubpath()
-        draw_glow_path(path, outline, fill)
+        if shape == "dot":
+            xhot, yhot = int(round(s * 0.5)), int(round(s * 0.5))
+            ring = QPainterPath()
+            ring.addEllipse(QPointF(s * 0.5, s * 0.5), s * 0.35, s * 0.35)
+            draw_glow_path(ring, accent, fill)
+            p.setBrush(accent)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawEllipse(QPointF(s * 0.5, s * 0.5), s * 0.15, s * 0.15)
+        else:
+            xhot, yhot = int(round(s * 0.36)), int(round(s * 0.10))
+            path = QPainterPath()
+            path.moveTo(s * 0.36, s * 0.10)
+            path.lineTo(s * 0.47, s * 0.10)
+            path.lineTo(s * 0.47, s * 0.42)
+            path.lineTo(s * 0.57, s * 0.40)
+            path.lineTo(s * 0.68, s * 0.44)
+            path.lineTo(s * 0.77, s * 0.50)
+            path.lineTo(s * 0.75, s * 0.78)
+            path.lineTo(s * 0.64, s * 0.90)
+            path.lineTo(s * 0.36, s * 0.90)
+            path.lineTo(s * 0.22, s * 0.66)
+            path.lineTo(s * 0.27, s * 0.54)
+            path.lineTo(s * 0.36, s * 0.60)
+            path.closeSubpath()
+            draw_glow_path(path, outline, fill)
 
     elif name == "text":
         xhot, yhot = int(round(s * 0.5)), int(round(s * 0.5))
@@ -277,21 +333,22 @@ def _ensure_qt() -> QGuiApplication:
     return app
 
 
-def render_preview_images(colors: CursorColors, style: str, size: int = 48) -> dict[str, QImage]:
+def render_preview_images(colors: CursorColors, style: str, shape: str = "bibata", size: int = 48) -> dict[str, QImage]:
     _ensure_qt()
     out: dict[str, QImage] = {}
     for name in CURSOR_ALIASES:
-        img, _, _ = _render_cursor_image(name, size, colors, style, phase=0.15)
+        img, _, _ = _render_cursor_image(name, size, colors, style, shape=shape, phase=0.15)
         out[name] = img
     return out
 
 
-def build_cursor_theme(colors: CursorColors | None = None, style: str | None = None) -> Path:
+def build_cursor_theme(colors: CursorColors | None = None, style: str | None = None, shape: str | None = None) -> Path:
     """Generate the complete ChromaCursor Xcursor theme under ~/.local/share/icons/ChromaCursor."""
     _ensure_qt()
     cfg = load_config()
     eff_colors = colors or read_omarchy_colors()
     eff_style = style or cfg.get("style", "neon")
+    eff_shape = shape or cfg.get("shape", "bibata")
 
     theme_dir = ICONS_DIR / THEME_NAME
     cursors_dir = theme_dir / "cursors"
@@ -300,16 +357,15 @@ def build_cursor_theme(colors: CursorColors | None = None, style: str | None = N
     for primary, aliases in CURSOR_ALIASES.items():
         frames: list[CursorFrame] = []
         if primary == "wait":
-            # 12-frame smooth spinning ring animation across all sizes
             n_frames = 12
             for sz in SIZES:
                 for i in range(n_frames):
-                    img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style, phase=i / n_frames)
+                    img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style, shape=eff_shape, phase=i / n_frames)
                     raw = bytes(img.constBits())
                     frames.append(CursorFrame(sz, sz, sz, xhot, yhot, 55, raw))
         else:
             for sz in SIZES:
-                img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style)
+                img, xhot, yhot = _render_cursor_image(primary, sz, eff_colors, eff_style, shape=eff_shape)
                 raw = bytes(img.constBits())
                 frames.append(CursorFrame(sz, sz, sz, xhot, yhot, 0, raw))
 
@@ -325,7 +381,7 @@ def build_cursor_theme(colors: CursorColors | None = None, style: str | None = N
     index_text = (
         "[Icon Theme]\n"
         f"Name={THEME_NAME}\n"
-        f"Comment=Dynamic Omarchy theme-synced cursor ({eff_style}, accent {eff_colors.accent})\n"
+        f"Comment=Dynamic Omarchy theme-synced cursor ({eff_shape}/{eff_style}, accent {eff_colors.accent})\n"
         "Inherits=Bibata-Modern-Ice,Adwaita\n"
     )
     (theme_dir / "index.theme").write_text(index_text, encoding="utf-8")
@@ -373,7 +429,8 @@ def apply_cursor_live(theme_name: str = THEME_NAME, size: int | None = None) -> 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="ChromaCursor — Dynamic Omarchy theme-synced cursor generator")
-    parser.add_argument("--style", choices=list(STYLES), default=None, help="Cursor visual style")
+    parser.add_argument("--style", choices=list(STYLES), default=None, help="Cursor color style")
+    parser.add_argument("--shape", choices=list(SHAPES), default=None, help="Cursor shape (bibata, dot, triangle, classic)")
     parser.add_argument("--size", type=int, choices=list(SIZES), default=None, help="Cursor size in px")
     parser.add_argument("--accent", default=None, help="Override accent hex color (e.g. #38bdf8)")
     parser.add_argument("--no-apply", action="store_true", help="Generate files without calling hyprctl/gsettings")
@@ -388,9 +445,11 @@ def main() -> int:
     cfg = load_config()
     if args.style:
         cfg["style"] = args.style
+    if args.shape:
+        cfg["shape"] = args.shape
     if args.size:
         cfg["size"] = args.size
-    if args.style or args.size:
+    if args.style or args.shape or args.size:
         save_config(cfg)
 
     colors = read_omarchy_colors()
@@ -398,12 +457,12 @@ def main() -> int:
         colors.accent = args.accent
         colors.source = "CLI override"
 
-    theme_dir = build_cursor_theme(colors=colors, style=cfg.get("style", "neon"))
+    theme_dir = build_cursor_theme(colors=colors, style=cfg.get("style", "neon"), shape=cfg.get("shape", "bibata"))
     if not args.no_apply:
         apply_cursor_live(THEME_NAME, cfg.get("size", 24))
 
     print(
-        f"ChromaCursor generated ({cfg.get('style', 'neon')}, accent={colors.accent}, size={cfg.get('size', 24)}px) -> {theme_dir}"
+        f"ChromaCursor generated ({cfg.get('shape', 'bibata')}/{cfg.get('style', 'neon')}, accent={colors.accent}, size={cfg.get('size', 24)}px) -> {theme_dir}"
     )
     return 0
 

@@ -7,10 +7,9 @@ Zero `xcursorgen` required — **ChromaCursor** renders crisp multi-size (`24px`
 ## Features
 
 - **Automatic Omarchy Theme Sync:** Installs an official Omarchy `theme-set` hook (`~/.config/omarchy/hooks/theme-set.d/chromacursor`). Switch your Omarchy theme → your cursor automatically adapts to the new accent & surface colors in under 0.4s!
-- **3 Sleek Cursor Styles:**
-  - **Neon Outline** — deep theme core with luminous accent outline & subtle halo
-  - **Solid Accent** — bold theme accent fill with high-contrast outline
-  - **Minimal Glass** — frosted foreground fill with accent edge
+- **4 Cursor Shapes × 3 Color Styles:**
+  - **Shapes:** **Bibata** (smooth rounded modern pointer), **Dot** (minimalist glowing circle), **Triangle** (sharp futuristic chevron), and **Classic** (geometric arrow)
+  - **Color Styles:** **Neon Outline**, **Solid Accent**, and **Minimal Glass**
 - **Complete Cursor Set:** `default`, `pointer`, `text`, `crosshair`, `move`, `ew-resize`, `ns-resize`, `nwse-resize`, `nesw-resize`, `not-allowed`, and a **12-frame animated `wait` / `progress`** spinner + all standard Wayland/X11/GTK/Qt symlinks.
 - **Companion Qt 6 Studio GUI:** Live preview of all cursors, 1-click style & size switcher (`24 / 32 / 48px`), Auto-Sync Hook toggle, and 1-click **Restore Bibata** button.
 

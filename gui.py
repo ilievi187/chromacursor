@@ -74,9 +74,11 @@ class ChromaCursorWindow(QMainWindow):
         self.palette_data = watcher.palette
         self.cfg = gen.load_config()
         self.style_key: str = self.cfg.get("style", "neon")
+        self.shape_key: str = self.cfg.get("shape", "bibata")
         self.cursor_size: int = int(self.cfg.get("size", 24))
         self._glow_buttons: list[GlowButton] = []
         self._style_btns: dict[str, GlowButton] = {}
+        self._shape_btns: dict[str, GlowButton] = {}
         self._size_btns: dict[int, GlowButton] = {}
         self._preview_labels: dict[str, QLabel] = {}
 
@@ -128,7 +130,21 @@ class ChromaCursorWindow(QMainWindow):
         hl.addWidget(self.apply_btn)
         root.addWidget(header)
 
-        # Controls Row: Style + Size + Hook
+        # Shape Row: Bibata / Dot / Triangle / Classic
+        shapes_row = QHBoxLayout()
+        shapes_row.setSpacing(8)
+        shapes_row.addWidget(QLabel("Shape:"))
+        for key, label in gen.SHAPES.items():
+            b = self._btn(label, obj_name="ChipButton", blur=12.0)
+            b.setCheckable(True)
+            b.setChecked(key == self.shape_key)
+            b.clicked.connect(lambda checked=False, k=key: self._select_shape(k))
+            self._shape_btns[key] = b
+            shapes_row.addWidget(b)
+        shapes_row.addStretch()
+        root.addLayout(shapes_row)
+
+        # Controls Row: Style + Size
         controls = QHBoxLayout()
         controls.setSpacing(8)
         controls.addWidget(QLabel("Style:"))
@@ -242,6 +258,15 @@ class ChromaCursorWindow(QMainWindow):
                 self.status_lbl.setText("✓ Auto-sync hook installed!")
         self._refresh_hook_button()
 
+    def _select_shape(self, key: str) -> None:
+        self.shape_key = key
+        for k, b in self._shape_btns.items():
+            b.setChecked(k == key)
+        self.cfg["shape"] = key
+        gen.save_config(self.cfg)
+        self._refresh_previews()
+        self._apply_now()
+
     def _select_style(self, key: str) -> None:
         self.style_key = key
         for k, b in self._style_btns.items():
@@ -261,17 +286,19 @@ class ChromaCursorWindow(QMainWindow):
 
     def _refresh_previews(self) -> None:
         colors = gen.read_omarchy_colors()
-        imgs = gen.render_preview_images(colors, self.style_key, size=48)
+        imgs = gen.render_preview_images(colors, self.style_key, shape=self.shape_key, size=48)
         for name, img in imgs.items():
             if name in self._preview_labels:
                 self._preview_labels[name].setPixmap(QPixmap.fromImage(img))
-        self.accent_pill.setText(f"Accent {colors.accent} · {gen.STYLES[self.style_key]}")
+        self.accent_pill.setText(f"{colors.accent} · {gen.SHAPES[self.shape_key]} · {gen.STYLES[self.style_key]}")
 
     def _apply_now(self) -> None:
         colors = gen.read_omarchy_colors()
-        gen.build_cursor_theme(colors=colors, style=self.style_key)
+        gen.build_cursor_theme(colors=colors, style=self.style_key, shape=self.shape_key)
         gen.apply_cursor_live(gen.THEME_NAME, self.cursor_size)
-        self.status_lbl.setText(f"✓ Applied {gen.STYLES[self.style_key]} ({colors.accent}, {self.cursor_size}px) live!")
+        self.status_lbl.setText(
+            f"✓ Applied {gen.SHAPES[self.shape_key]} / {gen.STYLES[self.style_key]} ({colors.accent}, {self.cursor_size}px) live!"
+        )
 
     def _restore_default(self) -> None:
         gen.apply_cursor_live("Bibata-Modern-Ice", self.cursor_size)
